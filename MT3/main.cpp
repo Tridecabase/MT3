@@ -23,7 +23,7 @@ Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
 /// <summary>
 /// スケーリング行列を作成
 /// </summary>
-/// <param name="scale"三次元ベクトル></param>
+/// <param name="scale">三次元ベクトル</param>
 /// <returns>スケーリング行列</returns>
 Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 	Matrix4x4 matrix = {
@@ -33,59 +33,73 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 		0.0f, 0.0f, 0.0f, 1.0f
 	};
 	return matrix;
+}
 
+
+/// <summary>
+/// 行列の掛け算
+/// </summary>
+/// <param name="x">行列x</param>
+/// <param name="y">行列y</param>
+/// <returns>掛け算結果</returns>
+Matrix4x4 Muiltiply(const Matrix4x4& x, const Matrix4x4& y) {
+	Matrix4x4 result = {};
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			result.m[i][j] = x.m[i][0] * y.m[0][j] + x.m[i][1] * y.m[1][j] +
+				x.m[i][2] * y.m[2][j] + x.m[i][3] * y.m[3][j];
+		}
+	}
+	return result;
 }
 
 /// <summary>
-/// x軸回りの回転行列を作成
+/// 回転行列を作成
 /// </summary>
-/// <param name="radian">角度</param>
+/// <param name="rotate">三次元ベクトル</param>
 /// <returns>回転行列</returns>
-Matrix4x4 MakeRotateXMatrix(float radian) {
-	Matrix4x4 matrix = {};
-	matrix.m[0][0] = 1.0f;
-	matrix.m[1][1] = std::cos(radian);
-	matrix.m[1][2] = std::sinf(radian);
-	matrix.m[2][1] = -std::sinf(radian);
-	matrix.m[2][2] = std::cosf(radian);
-	matrix.m[3][3] = 1.0f;
-	return matrix;
+Matrix4x4 MakeRotateMatrix(const Vector3& rotate) {
+    // X軸回転行列
+    Matrix4x4 rotateX = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, cosf(rotate.x), sinf(rotate.x), 0.0f,
+        0.0f, -sinf(rotate.x), cosf(rotate.x), 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    // Y軸回転行列
+    Matrix4x4 rotateY = {
+        cosf(rotate.y), 0.0f, -sinf(rotate.y), 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        sinf(rotate.y), 0.0f, cosf(rotate.y), 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    // Z軸回転行列
+    Matrix4x4 rotateZ = {
+        cosf(rotate.z), sinf(rotate.z), 0.0f, 0.0f,
+        -sinf(rotate.z), cosf(rotate.z), 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    return Muiltiply(Muiltiply(rotateX, rotateY), rotateZ);
 }
 
 /// <summary>
-/// y軸回りの回転行列を作成
+/// アフィン変換
 /// </summary>
-/// <param name="radian">角度</param>
-/// <returns>回転行列</returns>
-Matrix4x4 MakeRotateYMatrix(float radian) {
-	Matrix4x4 matrix = {};
-	matrix.m[0][0] = std::cos(radian);
-	matrix.m[0][2] = -std::sinf(radian);
-	matrix.m[1][1] = 1.0f;
-	matrix.m[2][0] = std::sinf(radian);
-	matrix.m[2][2] = std::cosf(radian);
-	matrix.m[3][3] = 1.0f;
-	return matrix;
-}
-
-/// <summary>
-/// z軸回りの回転行列を作成
-/// </summary>
-/// <param name="radian">角度</param>
-/// <returns>回転行列</returns>
-Matrix4x4 MakeRotateZMatrix(float radian) {
-	Matrix4x4 matrix = {};
-	matrix.m[0][0] = std::cos(radian);
-	matrix.m[0][1] = std::sinf(radian);
-	matrix.m[1][0] = -std::sinf(radian);
-	matrix.m[1][1] = std::cosf(radian);
-	matrix.m[2][2] = 1.0f;
-	matrix.m[3][3] = 1.0f;
-	return matrix;
-}
-
+/// <param name="scale">スクロールベクトル</param>
+/// <param name="rotate">回転ベクトル</param>
+/// <param name="translate">平行移動ベクトル</param>
+/// <returns>アフィン変換マトリックス</returns>
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-
+	Matrix4x4 result = {};
+	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
+	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
+	result = Muiltiply(Muiltiply(scaleMatrix, rotateMatrix), translateMatrix);
+	return result;
 }
 
 static const int kRowHeight = 20;
@@ -128,40 +142,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-        Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-           Matrix4x4 result;
+		Vector3 scale{ 1.2f,0.79f,-2.1f };
+		Vector3 rotate{ 0.4f,1.43f,-0.8f };
+		Vector3 translate{ 2.7f,-4.15f,1.57f };
+		Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
 
-           // 回転角をラジアンに変換
-           float cosX = cosf(rotate.x);
-           float sinX = sinf(rotate.x);
-           float cosY = cosf(rotate.y);
-           float sinY = sinf(rotate.y);
-           float cosZ = cosf(rotate.z);
-           float sinZ = sinf(rotate.z);
-
-           // スケール、回転、平行移動を組み合わせたアフィン変換行列を作成
-           result.m[0][0] = scale.x * (cosY * cosZ);
-           result.m[0][1] = scale.x * (cosY * sinZ);
-           result.m[0][2] = scale.x * (-sinY);
-           result.m[0][3] = 0.0f;
-
-           result.m[1][0] = scale.y * (sinX * sinY * cosZ - cosX * sinZ);
-           result.m[1][1] = scale.y * (sinX * sinY * sinZ + cosX * cosZ);
-           result.m[1][2] = scale.y * (sinX * cosY);
-           result.m[1][3] = 0.0f;
-
-           result.m[2][0] = scale.z * (cosX * sinY * cosZ + sinX * sinZ);
-           result.m[2][1] = scale.z * (cosX * sinY * sinZ - sinX * cosZ);
-           result.m[2][2] = scale.z * (cosX * cosY);
-           result.m[2][3] = 0.0f;
-
-           result.m[3][0] = translate.x;
-           result.m[3][1] = translate.y;
-           result.m[3][2] = translate.z;
-           result.m[3][3] = 1.0f;
-
-           return result;
-        }
 		///
 		/// ↑更新処理ここまで
 		///
@@ -170,6 +155,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
+		MatrixScreenPrintf(0, 0, worldMatrix, "worldMatrix");
 
 		///
 		/// ↑描画処理ここまで
