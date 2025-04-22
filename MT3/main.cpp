@@ -1,79 +1,108 @@
 #include <Novice.h>
 #include "Vector3.h"
-#include <math.h>
+#include <cmath>
+#include "Matrix4x4.h"
 
-const char kWindowTitle[] = "GC1B_08_ジョ_シセイ";
+const char kWindowTitle[] = "GC2B_05_ジョ_シセイ";
 
 /// <summary>
-/// 三次元ベクトルの加算
+/// 平行移動行列を作成
 /// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>加算結果</returns>
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
-	return Vector3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+/// <param name="translate">三次元ベクトル</param>
+/// <returns>平行移動行列</returns>
+Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
+	Matrix4x4 matrix = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		translate.x, translate.y, translate.z, 1.0f
+	};
+	return matrix;
 }
 
 /// <summary>
-/// 三次元ベクトルの減算
+/// スケーリング行列を作成
 /// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>減算結果</returns>
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-	return Vector3(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+/// <param name="scale"三次元ベクトル></param>
+/// <returns>スケーリング行列</returns>
+Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
+	Matrix4x4 matrix = {
+		scale.x, 0.0f, 0.0f, 0.0f,
+		0.0f, scale.y, 0.0f, 0.0f,
+		0.0f, 0.0f, scale.z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+	return matrix;
+
 }
 
 /// <summary>
-/// 三次元ベクトルのスカラー倍
+/// x軸回りの回転行列を作成
 /// </summary>
-/// <param name="scalar"></param>
-/// <param name="v"></param>
-/// <returns>スカラー倍後のベクトル</returns>
-Vector3 Multiply(float scalar, const Vector3& v) {
-	return Vector3(scalar * v.x, scalar * v.y, scalar * v.z);
+/// <param name="radian">角度</param>
+/// <returns>回転行列</returns>
+Matrix4x4 MakeRotateXMatrix(float radian) {
+	Matrix4x4 matrix = {};
+	matrix.m[0][0] = 1.0f;
+	matrix.m[1][1] = std::cos(radian);
+	matrix.m[1][2] = std::sinf(radian);
+	matrix.m[2][1] = -std::sinf(radian);
+	matrix.m[2][2] = std::cosf(radian);
+	matrix.m[3][3] = 1.0f;
+	return matrix;
 }
 
 /// <summary>
-/// 三次元ベクトルの内積
+/// y軸回りの回転行列を作成
 /// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>内積計算の結果</returns>
-float Dot(const Vector3& v1, const Vector3& v2) {
-	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+/// <param name="radian">角度</param>
+/// <returns>回転行列</returns>
+Matrix4x4 MakeRotateYMatrix(float radian) {
+	Matrix4x4 matrix = {};
+	matrix.m[0][0] = std::cos(radian);
+	matrix.m[0][2] = -std::sinf(radian);
+	matrix.m[1][1] = 1.0f;
+	matrix.m[2][0] = std::sinf(radian);
+	matrix.m[2][2] = std::cosf(radian);
+	matrix.m[3][3] = 1.0f;
+	return matrix;
 }
 
 /// <summary>
-/// 三次元ベクトルの長さを計算する
+/// z軸回りの回転行列を作成
 /// </summary>
-/// <param name="v"></param>
-/// <returns></returns>
-float Length(const Vector3& v) {
-	return sqrtf(Dot(v, v));
+/// <param name="radian">角度</param>
+/// <returns>回転行列</returns>
+Matrix4x4 MakeRotateZMatrix(float radian) {
+	Matrix4x4 matrix = {};
+	matrix.m[0][0] = std::cos(radian);
+	matrix.m[0][1] = std::sinf(radian);
+	matrix.m[1][0] = -std::sinf(radian);
+	matrix.m[1][1] = std::cosf(radian);
+	matrix.m[2][2] = 1.0f;
+	matrix.m[3][3] = 1.0f;
+	return matrix;
 }
 
-/// <summary>
-/// 三次元ベクトルの正規化
-/// </summary>
-/// <param name="v"></param>
-/// <returns>正規化後のベクトル</returns>
-Vector3 Normalize(const Vector3& v) {
-	float length = Length(v);
-	if (length == 0.0f) {
-		return Vector3(0.0f, 0.0f, 0.0f);
-	}
-	return Multiply(1.0f / length, v);
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
+
 }
 
-static const int kColumWidth = 60;
 static const int kRowHeight = 20;
-// ベクトルを画面に表示する関数
-void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label) {
-	Novice::ScreenPrintf(x, y, "%0.2f", vector.x);
-	Novice::ScreenPrintf(x + kColumWidth, y, "%0.2f", vector.y);
-	Novice::ScreenPrintf(x + kColumWidth * 2, y, "%0.2f", vector.z);
-	Novice::ScreenPrintf(x + kColumWidth * 3, y, "%s", label);
+static const int kColumnWidth = 60;
+/// <summary>
+/// 行列をスクリーンに表示
+/// </summary>
+/// <param name="x">行数</param>
+/// <param name="y">列数</param>
+/// <param name="m">4x4行列</param>
+void MatrixScreenPrintf(int x, int y, Matrix4x4& m, const char* label) {
+	Novice::ScreenPrintf(x, y, "%s", label);
+	for (int row = 0; row < 4; ++row) {
+		for (int column = 0; column < 4; ++column) {
+			Novice::ScreenPrintf(x + column * kColumnWidth, y + (row + 1) * kRowHeight, "%6.02f", m.m[row][column]);
+		}
+	}
 }
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -99,17 +128,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Vector3 v1{ 1.0f,3.0f,-5.0f };
-		Vector3 v2{ 4.0f,-1.0f,2.0f };
-		float k = { 4.0f };
+        Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
+           Matrix4x4 result;
 
-		Vector3 resultAdd = Add(v1, v2);
-		Vector3 resultSubtract = Subtract(v1, v2);
-		Vector3 resultMultiply = Multiply(k, v1);
-		float resultDot = Dot(v1, v2);
-		float resultLength = Length(v1);
-		Vector3 resultNormalize = Normalize(v2);
+           // 回転角をラジアンに変換
+           float cosX = cosf(rotate.x);
+           float sinX = sinf(rotate.x);
+           float cosY = cosf(rotate.y);
+           float sinY = sinf(rotate.y);
+           float cosZ = cosf(rotate.z);
+           float sinZ = sinf(rotate.z);
 
+           // スケール、回転、平行移動を組み合わせたアフィン変換行列を作成
+           result.m[0][0] = scale.x * (cosY * cosZ);
+           result.m[0][1] = scale.x * (cosY * sinZ);
+           result.m[0][2] = scale.x * (-sinY);
+           result.m[0][3] = 0.0f;
+
+           result.m[1][0] = scale.y * (sinX * sinY * cosZ - cosX * sinZ);
+           result.m[1][1] = scale.y * (sinX * sinY * sinZ + cosX * cosZ);
+           result.m[1][2] = scale.y * (sinX * cosY);
+           result.m[1][3] = 0.0f;
+
+           result.m[2][0] = scale.z * (cosX * sinY * cosZ + sinX * sinZ);
+           result.m[2][1] = scale.z * (cosX * sinY * sinZ - sinX * cosZ);
+           result.m[2][2] = scale.z * (cosX * cosY);
+           result.m[2][3] = 0.0f;
+
+           result.m[3][0] = translate.x;
+           result.m[3][1] = translate.y;
+           result.m[3][2] = translate.z;
+           result.m[3][3] = 1.0f;
+
+           return result;
+        }
 		///
 		/// ↑更新処理ここまで
 		///
@@ -118,12 +170,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		VectorScreenPrintf(0, 0, resultAdd, " : Add");
-		VectorScreenPrintf(0, kRowHeight, resultSubtract, " : Subtract");
-		VectorScreenPrintf(0, kRowHeight * 2, resultMultiply, "	: Multiply");
-		Novice::ScreenPrintf(0, kRowHeight * 3, "%0.2f : Dot", resultDot);
-		Novice::ScreenPrintf(0, kRowHeight * 4, "%0.2f : Length", resultLength);
-		VectorScreenPrintf(0, kRowHeight * 5, resultNormalize, " : Normalize");
 
 		///
 		/// ↑描画処理ここまで
