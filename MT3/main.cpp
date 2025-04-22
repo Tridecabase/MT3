@@ -1,79 +1,86 @@
 #include <Novice.h>
 #include "Vector3.h"
 #include <math.h>
+#include "Matrix4x4.h"
 
-const char kWindowTitle[] = "GC1B_08_ジョ_シセイ";
+const char kWindowTitle[] = "GC2B_05_ジョ_シセイ";
 
 /// <summary>
-/// 三次元ベクトルの加算
+/// 平行移動行列を作成
 /// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>加算結果</returns>
-Vector3 Add(const Vector3& v1, const Vector3& v2) {
-	return Vector3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
+/// <param name="translate">三次元ベクトル</param>
+/// <returns>平行移動行列</returns>
+Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
+	Matrix4x4 matrix = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		translate.x, translate.y, translate.z, 1.0f
+	};
+	return matrix;
 }
 
 /// <summary>
-/// 三次元ベクトルの減算
+/// スケーリング行列を作成
 /// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>減算結果</returns>
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-	return Vector3(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+/// <param name="scale"三次元ベクトル></param>
+/// <returns>スケーリング行列</returns>
+Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
+	Matrix4x4 matrix = {
+		scale.x, 0.0f, 0.0f, 0.0f,
+		0.0f, scale.y, 0.0f, 0.0f,
+		0.0f, 0.0f, scale.z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+	return matrix;
+
 }
 
 /// <summary>
-/// 三次元ベクトルのスカラー倍
+/// 同次座標系を変換した三次元ベクトルをメトリクスと掛け算して変換
 /// </summary>
-/// <param name="scalar"></param>
-/// <param name="v"></param>
-/// <returns>スカラー倍後のベクトル</returns>
-Vector3 Multiply(float scalar, const Vector3& v) {
-	return Vector3(scalar * v.x, scalar * v.y, scalar * v.z);
-}
-
-/// <summary>
-/// 三次元ベクトルの内積
-/// </summary>
-/// <param name="v1"></param>
-/// <param name="v2"></param>
-/// <returns>内積計算の結果</returns>
-float Dot(const Vector3& v1, const Vector3& v2) {
-	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
-
-/// <summary>
-/// 三次元ベクトルの長さを計算する
-/// </summary>
-/// <param name="v"></param>
-/// <returns></returns>
-float Length(const Vector3& v) {
-	return sqrtf(Dot(v, v));
-}
-
-/// <summary>
-/// 三次元ベクトルの正規化
-/// </summary>
-/// <param name="v"></param>
-/// <returns>正規化後のベクトル</returns>
-Vector3 Normalize(const Vector3& v) {
-	float length = Length(v);
-	if (length == 0.0f) {
-		return Vector3(0.0f, 0.0f, 0.0f);
+/// <param name="vector">三次元ベクトル</param>
+/// <param name="matrix">メトリクス</param>
+/// <returns>掛け算の結果</returns>
+Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
+	Vector3 result;
+	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + matrix.m[3][3];
+	if (w != 0.0f) {
+		result.x = (vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + matrix.m[3][0]) / w;
+		result.y = (vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + matrix.m[3][1]) / w;
+		result.z = (vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + matrix.m[3][2]) / w;
 	}
-	return Multiply(1.0f / length, v);
+	else {
+		result.x = 0.0f;
+		result.y = 0.0f;
+		result.z = 0.0f;
+	}
+	return result;
 }
 
-static const int kColumWidth = 60;
 static const int kRowHeight = 20;
+static const int kColumnWidth = 60;
+/// <summary>
+/// 行列をスクリーンに表示
+/// </summary>
+/// <param name="x">行数</param>
+/// <param name="y">列数</param>
+/// <param name="m">4x4行列</param>
+void MatrixScreenPrintf(int x, int y, Matrix4x4& m, const char* label) {
+	Novice::ScreenPrintf(x, y, "%s", label);
+	for (int row = 0; row < 4; ++row) {
+		for (int column = 0; column < 4; ++column) {
+			Novice::ScreenPrintf(x + column * kColumnWidth, y + (row + 1) * kRowHeight, "%6.02f", m.m[row][column]);
+		}
+	}
+}
+
 // ベクトルを画面に表示する関数
 void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label) {
 	Novice::ScreenPrintf(x, y, "%0.2f", vector.x);
-	Novice::ScreenPrintf(x + kColumWidth, y, "%0.2f", vector.y);
-	Novice::ScreenPrintf(x + kColumWidth * 2, y, "%0.2f", vector.z);
-	Novice::ScreenPrintf(x + kColumWidth * 3, y, "%s", label);
+	Novice::ScreenPrintf(x + kColumnWidth, y, "%0.2f", vector.y);
+	Novice::ScreenPrintf(x + kColumnWidth * 2, y, "%0.2f", vector.z);
+	Novice::ScreenPrintf(x + kColumnWidth * 3, y, "%s", label);
 }
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -99,16 +106,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Vector3 v1{ 1.0f,3.0f,-5.0f };
-		Vector3 v2{ 4.0f,-1.0f,2.0f };
-		float k = { 4.0f };
-
-		Vector3 resultAdd = Add(v1, v2);
-		Vector3 resultSubtract = Subtract(v1, v2);
-		Vector3 resultMultiply = Multiply(k, v1);
-		float resultDot = Dot(v1, v2);
-		float resultLength = Length(v1);
-		Vector3 resultNormalize = Normalize(v2);
+		Vector3 translate{ 4.1f, 2.6f, 0.8f };
+		Vector3 scale{ 1.5f, 5.2f, 7.3f };
+		Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
+		Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+		Vector3 point{ 2.3f, 3.8f, 1.4f };
+		Matrix4x4 transformMatrix = {
+			1.0f,2.0f,3.0f,4.0f,
+			3.0f,1.0f,1.0f,2.0f,
+			1.0f,4.0f,2.0f,3.0f,
+			2.0f,2.0f,1.0f,3.0f
+		};
+		Vector3 transformed = Transform(point, transformMatrix);
 
 		///
 		/// ↑更新処理ここまで
@@ -118,12 +127,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		VectorScreenPrintf(0, 0, resultAdd, " : Add");
-		VectorScreenPrintf(0, kRowHeight, resultSubtract, " : Subtract");
-		VectorScreenPrintf(0, kRowHeight * 2, resultMultiply, "	: Multiply");
-		Novice::ScreenPrintf(0, kRowHeight * 3, "%0.2f : Dot", resultDot);
-		Novice::ScreenPrintf(0, kRowHeight * 4, "%0.2f : Length", resultLength);
-		VectorScreenPrintf(0, kRowHeight * 5, resultNormalize, " : Normalize");
+		VectorScreenPrintf(0, 0, transformed, "transformed");
+		MatrixScreenPrintf(0, 20, translateMatrix, "translateMatrix");
+		MatrixScreenPrintf(0, kRowHeight * 6, scaleMatrix, "scaleMatrix");
 
 		///
 		/// ↑描画処理ここまで
