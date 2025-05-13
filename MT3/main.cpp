@@ -6,100 +6,66 @@
 const char kWindowTitle[] = "GC2B_05_ジョ_シセイ";
 
 /// <summary>
-/// 平行移動行列を作成
+/// 透視投影行列を作成
 /// </summary>
-/// <param name="translate">三次元ベクトル</param>
-/// <returns>平行移動行列</returns>
-Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
-	Matrix4x4 matrix = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		translate.x, translate.y, translate.z, 1.0f
-	};
+/// <param name="fovY">垂直視野角(ラジアン)</param>
+/// <param name="aspectRatio">アスペクト比</param>
+/// <param name="nearClip">カメラからの距離</param>
+/// <param name="farClip">カメラからの距離</param>
+/// <returns>透視投影行列</returns>
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
+	Matrix4x4 matrix = {};
+	float f = 1.0f / tanf(fovY / 2.0f);
+	matrix.m[0][0] = f / aspectRatio;
+	matrix.m[1][1] = f;
+	matrix.m[2][2] = farClip / (farClip - nearClip);
+	matrix.m[2][3] = 1.0f;
+	matrix.m[3][2] = (farClip * nearClip) / (nearClip - farClip);
 	return matrix;
 }
 
 /// <summary>
-/// スケーリング行列を作成
+/// 正射影行列を作成
 /// </summary>
-/// <param name="scale">三次元ベクトル</param>
-/// <returns>スケーリング行列</returns>
-Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
-	Matrix4x4 matrix = {
-		scale.x, 0.0f, 0.0f, 0.0f,
-		0.0f, scale.y, 0.0f, 0.0f,
-		0.0f, 0.0f, scale.z, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
+/// <param name="left">左端の位置</param>
+/// <param name="top">上端の位置</param>
+/// <param name="right">右端の位置</param>
+/// <param name="bottom">下端の位置</param>
+/// <param name="nearClip">カメラからの距離</param>
+/// <param name="farClip">カメラからの距離</param>
+/// <returns>正射影行列</returns>
+Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+	Matrix4x4 matrix = {};
+	matrix.m[0][0] = 2.0f / (right - left);
+	matrix.m[1][1] = 2.0f / (top - bottom);
+	matrix.m[2][2] = 1.0f / (farClip - nearClip);
+	matrix.m[3][0] = (right + left) / (left - right);
+	matrix.m[3][1] = (top + bottom) / (bottom - top);
+	matrix.m[3][2] = nearClip / (nearClip - farClip);
+	matrix.m[3][3] = 1.0f;
 	return matrix;
 }
 
-
 /// <summary>
-/// 行列の掛け算
+/// ビューポート変換行列を作成
 /// </summary>
-/// <param name="x">行列x</param>
-/// <param name="y">行列y</param>
-/// <returns>掛け算結果</returns>
-Matrix4x4 Muiltiply(const Matrix4x4& x, const Matrix4x4& y) {
-	Matrix4x4 result = {};
-	for (int i = 0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			result.m[i][j] = x.m[i][0] * y.m[0][j] + x.m[i][1] * y.m[1][j] +
-				x.m[i][2] * y.m[2][j] + x.m[i][3] * y.m[3][j];
-		}
-	}
-	return result;
-}
-
-/// <summary>
-/// 回転行列を作成
-/// </summary>
-/// <param name="rotate">三次元ベクトル</param>
-/// <returns>回転行列</returns>
-Matrix4x4 MakeRotateMatrix(const Vector3& rotate) {
-    // X軸回転行列
-    Matrix4x4 rotateX = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, cosf(rotate.x), sinf(rotate.x), 0.0f,
-        0.0f, -sinf(rotate.x), cosf(rotate.x), 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    // Y軸回転行列
-    Matrix4x4 rotateY = {
-        cosf(rotate.y), 0.0f, -sinf(rotate.y), 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        sinf(rotate.y), 0.0f, cosf(rotate.y), 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    // Z軸回転行列
-    Matrix4x4 rotateZ = {
-        cosf(rotate.z), sinf(rotate.z), 0.0f, 0.0f,
-        -sinf(rotate.z), cosf(rotate.z), 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    return Muiltiply(Muiltiply(rotateX, rotateY), rotateZ);
-}
-
-/// <summary>
-/// アフィン変換
-/// </summary>
-/// <param name="scale">スクロールベクトル</param>
-/// <param name="rotate">回転ベクトル</param>
-/// <param name="translate">平行移動ベクトル</param>
-/// <returns>アフィン変換マトリックス</returns>
-Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
-	Matrix4x4 result = {};
-	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
-	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotate);
-	Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
-	result = Muiltiply(Muiltiply(scaleMatrix, rotateMatrix), translateMatrix);
-	return result;
+/// <param name="left">左端の位置</param>
+/// <param name="top">右端の位置</param>
+/// <param name="width">長さ</param>
+/// <param name="height">高さ</param>
+/// <param name="minDepth">カメラからの距離</param>
+/// <param name="maxDepth">カメラからの距離</param>
+/// <returns>ビューポート変換行列</returns>
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
+	Matrix4x4 matrix = {};
+	matrix.m[0][0] = width / 2.0f;
+	matrix.m[1][1] = -height / 2.0f;
+	matrix.m[2][2] = maxDepth - minDepth;
+	matrix.m[3][0] = left + width / 2.0f;
+	matrix.m[3][1] = top + height / 2.0f;
+	matrix.m[3][2] = minDepth;
+	matrix.m[3][3] = 1.0f;
+	return matrix;
 }
 
 static const int kRowHeight = 20;
@@ -138,14 +104,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 
+
 		///
 		/// ↓更新処理ここから
 		///
 
-		Vector3 scale{ 1.2f,0.79f,-2.1f };
-		Vector3 rotate{ 0.4f,1.43f,-0.8f };
-		Vector3 translate{ 2.7f,-4.15f,1.57f };
-		Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
+		Matrix4x4 orthographicMatrix = MakeOrthographicMatrix(-160.0f, 160.0f, 200.0f, 300.0f, 0.0f, 1000.0f);
+		Matrix4x4 perspectiveMatrix = MakePerspectiveFovMatrix(0.63f, 1.33f, 0.1f, 1000.0f);
+		Matrix4x4 viewportMatrix = MakeViewportMatrix(100.0f, 200.0f, 600.0f, 300.0f, 0.0f, 1.0f);
 
 		///
 		/// ↑更新処理ここまで
@@ -155,7 +121,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		MatrixScreenPrintf(0, 0, worldMatrix, "worldMatrix");
+		MatrixScreenPrintf(0, 0, orthographicMatrix, "Orthographic Matrix");
+		MatrixScreenPrintf(0, 5 * kRowHeight, perspectiveMatrix, "Perspective Matrix");
+		MatrixScreenPrintf(0, 10 * kRowHeight, viewportMatrix, "Viewport Matrix");
 
 		///
 		/// ↑描画処理ここまで
