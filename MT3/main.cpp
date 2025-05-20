@@ -285,6 +285,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
+	Vector3 v1{ 1.2f,-3.9f,2.5f };
+	Vector3 v2{ 2.8f,0.4f,-1.3f };
+	Vector3 cross = Cross(v1, v2);
+	Vector3 cameraPosition = { 0.0f, 0.0f, 20.0f };
+
+	int kWindowWidth = 1280;
+	int kWindowHeight = 720;
+
+	// 三角形の座標
+	Vector3 kLocalVertices[3] = {
+		{ -1.0f, -1.0f, 0.0f },
+		{ 1.0f, -1.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f }
+	};
+
+	Vector3 translate{ 0.0f, 0.0f, 0.0f };
+	Vector3 scale{ 1.0f, 1.0f, 1.0f };
+	Vector3 rotate{ 0.0f, 0.0f, 0.0f };
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -294,28 +313,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 
-		Vector3 v1{ 1.2f,-3.9f,2.5f };
-		Vector3 v2{ 2.8f,0.4f,-1.3f };
-		Vector3 cross = Cross(v1, v2);
-		Vector3 cameraPosition = { 0.0f, 0.0f, 10.0f };
-
-		int kWindowWidth = 1280;
-		int kWindowHeight = 720;
-
-		Vector3 kLocalVertices[3] = {
-			{ 640.0f, 100.0f, 0.0f },
-			{ 540.0f, 400.0f, 0.0f },
-			{ 740.0f, 400.0f, 0.0f }
-		};
-
-		Vector3 translate{ 10.0f, 1.0f, 1.0f };
-		Vector3 rotate{ 1.5f, 5.2f, 7.3f };
-
 		///
 		/// ↓更新処理ここから
 		///
 
-		Matrix4x4 wordMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, rotate, translate);
+		Matrix4x4 wordMatrix = MakeAffineMatrix(scale, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, cameraPosition);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kWindowWidth) / float(kWindowHeight), 0.1f, 100.0f);
