@@ -301,8 +301,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 
 	Vector3 translate{ 0.0f, 0.0f, 0.0f };
-	Vector3 scale{ 1.0f, 1.0f, 1.0f };
 	Vector3 rotate{ 0.0f, 0.0f, 0.0f };
+	Vector3 scale{ 1.0f, 1.0f, 1.0f };
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -317,11 +317,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Matrix4x4 wordMatrix = MakeAffineMatrix(scale, rotate, translate);
+		if (keys[DIK_W]) {
+			cameraPosition.y -= 0.1f;
+		}
+		if (keys[DIK_S]) {
+			cameraPosition.y += 0.1f;
+		}
+		if (keys[DIK_A]) {
+			cameraPosition.x -= 0.1f;
+		}
+		if (keys[DIK_D]) {
+			cameraPosition.x += 0.1f;
+		}
+		if (keys[DIK_Q]) {
+			cameraPosition.z -= 0.1f;
+		}
+		if (keys[DIK_E]) {
+			cameraPosition.z += 0.1f;
+		}
+
+		rotate.y += 0.01f;
+
+		Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, cameraPosition);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kWindowWidth) / float(kWindowHeight), 0.1f, 100.0f);
-		Matrix4x4 worldViewProjectionMatrix = Muiltiply(wordMatrix, Muiltiply(projectionMatrix, viewMatrix));
+		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix,projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 		Vector3 screenVertices[3];
 		for (uint32_t i = 0; i < 3; ++i) {
