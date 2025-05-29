@@ -22,6 +22,12 @@ struct Segment {
 	Vector3 diff; //!<方向ベクトル
 };
 
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
+
+
 
 /// <summary>
 /// 透視投影行列を作成
@@ -286,10 +292,10 @@ void MatrixScreenPrintf(int x, int y, Matrix4x4& m, const char* label) {
 }
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
-	const float kGridHalfWidth = 5.0f;
+	const float kGridHalfWidth = 2.0f;
 	const uint32_t kSubdivision = 10;
 	const float kGridEvery = (kGridHalfWidth * 2.0f) / float(kSubdivision);
-	const float kGridZOffset = 10.0f;
+	const float kGridZOffset = 0.0f;
 	const uint32_t kBlack = 0x000000FF;
 
 	for (uint32_t xIndex = 0; xIndex <= kSubdivision; ++xIndex)
@@ -316,6 +322,116 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		uint32_t color = (fabsf(start.z - kGridZOffset) < 0.0001f) ? kBlack : WHITE;
 		Novice::DrawLine(int(screenStart.x), int(screenStart.y), int(screenEnd.x), int(screenEnd.y), color);
 	}
+}
+
+void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	const uint32_t kSubdivision = 12;
+	const float kLonEvery = float(2.0f * M_PI) / float(kSubdivision);
+	const float kLatEvery = float(M_PI) / float(kSubdivision);
+
+	float rotationAngle = float(M_PI) / 2.0f;
+	float cosRot = cosf(rotationAngle);
+	float sinRot = sinf(rotationAngle);
+
+	for (uint32_t latIndex = 0; latIndex <= kSubdivision; ++latIndex) {
+		float lat = float(-M_PI) / 2.0f + kLatEvery * latIndex;
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lonA = kLonEvery * lonIndex;
+			float lonB = kLonEvery * (lonIndex + 1);
+
+			Vector3 a, b;
+			a.x = sphere.center.x + sphere.radius * cosf(lat) * cosf(lonA);
+			a.y = sphere.center.y + sphere.radius * cosf(lat) * sinf(lonA);
+			a.z = sphere.center.z + sphere.radius * sinf(lat);
+
+			b.x = sphere.center.x + sphere.radius * cosf(lat) * cosf(lonB);
+			b.y = sphere.center.y + sphere.radius * cosf(lat) * sinf(lonB);
+			b.z = sphere.center.z + sphere.radius * sinf(lat);
+
+			Vector3 aRot, bRot;
+			aRot.x = a.x;
+			aRot.y = a.y * cosRot - a.z * sinRot;
+			aRot.z = a.y * sinRot + a.z * cosRot;
+
+			bRot.x = b.x;
+			bRot.y = b.y * cosRot - b.z * sinRot;
+			bRot.z = b.y * sinRot + b.z * cosRot;
+
+			Vector3 ndcA = Transform(aRot, viewProjectionMatrix);
+			Vector3 ndcB = Transform(bRot, viewProjectionMatrix);
+			Vector3 screenA = Transform(ndcA, viewportMatrix);
+			Vector3 screenB = Transform(ndcB, viewportMatrix);
+
+			Novice::DrawLine(int(screenA.x), int(screenA.y), int(screenB.x), int(screenB.y), color);
+		}
+	}
+
+	for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+		float lon = kLonEvery * lonIndex;
+		for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+			float latA = float(-M_PI) / 2.0f + kLatEvery * latIndex;
+			float latB = latA + kLatEvery;
+
+			Vector3 a, b;
+			a.x = sphere.center.x + sphere.radius * cosf(latA) * cosf(lon);
+			a.y = sphere.center.y + sphere.radius * cosf(latA) * sinf(lon);
+			a.z = sphere.center.z + sphere.radius * sinf(latA);
+
+			b.x = sphere.center.x + sphere.radius * cosf(latB) * cosf(lon);
+			b.y = sphere.center.y + sphere.radius * cosf(latB) * sinf(lon);
+			b.z = sphere.center.z + sphere.radius * sinf(latB);
+
+			Vector3 aRot, bRot;
+			aRot.x = a.x;
+			aRot.y = a.y * cosRot - a.z * sinRot;
+			aRot.z = a.y * sinRot + a.z * cosRot;
+
+			bRot.x = b.x;
+			bRot.y = b.y * cosRot - b.z * sinRot;
+			bRot.z = b.y * sinRot + b.z * cosRot;
+
+			Vector3 ndcA = Transform(aRot, viewProjectionMatrix);
+			Vector3 ndcB = Transform(bRot, viewProjectionMatrix);
+			Vector3 screenA = Transform(ndcA, viewportMatrix);
+			Vector3 screenB = Transform(ndcB, viewportMatrix);
+
+			Novice::DrawLine(int(screenA.x), int(screenA.y), int(screenB.x), int(screenB.y), color);
+		}
+	}
+}
+
+Vector3 Project(const Vector3& v1, const Vector3& v2) {
+	Vector3 result;
+	result.x = v1.x * v2.x;
+	result.y = v1.y * v2.y;
+	result.z = v1.z * v2.z;
+	return result;
+}
+
+Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
+	Vector3 result;
+	result.x = v1.x - v2.x;
+	result.y = v1.y - v2.y;
+	result.z = v1.z - v2.z;
+	return result;
+}
+
+Vector3 ClosePoint(const Vector3& point, const Segment& segment) {
+	// セグメントの始点からのベクトル
+	Vector3 segmentToPoint = { point.x - segment.origin.x, point.y - segment.origin.y, point.z - segment.origin.z };
+	// セグメントの方向ベクトル
+	Vector3 segmentDirection = { segment.diff.x, segment.diff.y, segment.diff.z };
+	// セグメントの長さの二乗
+	float segmentLengthSquared = segmentDirection.x * segmentDirection.x + segmentDirection.y * segmentDirection.y + segmentDirection.z * segmentDirection.z;
+	if (segmentLengthSquared == 0.0f) {
+		return segment.origin; // セグメントが点の場合、始点を返す
+	}
+	// セグメントの方向ベクトルを正規化
+	Vector3 normalizedSegmentDirection = { segmentDirection.x / sqrtf(segmentLengthSquared), segmentDirection.y / sqrtf(segmentLengthSquared), segmentDirection.z / sqrtf(segmentLengthSquared) };
+	// 点からセグメントへの投影
+	float projectionLength = (segmentToPoint.x * normalizedSegmentDirection.x + segmentToPoint.y * normalizedSegmentDirection.y + segmentToPoint.z * normalizedSegmentDirection.z);
+	projectionLength = fmaxf(0.0f, fminf(projectionLength, sqrtf(segmentLengthSquared))); // 投影長をセグメントの長さに制限
+	return { segment.origin.x + normalizedSegmentDirection.x * projectionLength, segment.origin.y + normalizedSegmentDirection.y * projectionLength, segment.origin.z + normalizedSegmentDirection.z * projectionLength };
 }
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -364,6 +480,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
+		Segment segment = { { -2.0f, -1.0f, 0.0f }, { 3.0f, 2.0f, 2.0f } };
+		Vector3 point = { -1.5f, 0.6f, 0.6f };
+		Vector3 project = Project(Subtract(point, segment.origin), segment.diff);
+		Vector3 closePoint = ClosePoint(point, segment);
+
+		Sphere pointSphere = { point, 0.01f };
+		Sphere closesSphere = { closePoint, 0.01f };
+
 
 		///
 		/// ↑更新処理ここまで
@@ -374,6 +498,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
+		DrawSphere(pointSphere, worldViewProjectionMatrix, viewportMatrix, RED);
+		DrawSphere(closesSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
 
 		///
 		/// ↑描画処理ここまで
