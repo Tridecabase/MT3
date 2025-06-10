@@ -295,9 +295,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 三角形の座標
 	Vector3 kLocalVertices[3] = {
-		{ -1.0f, -1.0f, 0.0f },
-		{ 1.0f, -1.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f }
+		{ 1.0f, 1.0f, 0.0f },
+		{ -1.0f, 1.0f, 0.0f },
+		{ 0.0f, -1.0f, 0.0f }
 	};
 
 	Vector3 translate{ 0.0f, 0.0f, 0.0f };
