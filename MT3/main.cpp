@@ -400,11 +400,22 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 	}
 }
 
-Vector3 Project(const Vector3& v1, const Vector3& v2) {
+//正射影ベクトル
+Vector3 Project(const Vector3& a, const Vector3& b) {
+	float bLenSq = b.x * b.x + b.y * b.y + b.z * b.z;
+	if (bLenSq == 0.0f) {
+		return { 0.0f, 0.0f, 0.0f };
+	}
+	float dot = a.x * b.x + a.y * b.y + a.z * b.z;
+	float scale = dot / bLenSq;
+	return { b.x * scale, b.y * scale, b.z * scale };
+}
+
+Vector3 Add(const Vector3& v1, const Vector3& v2) {
 	Vector3 result;
-	result.x = v1.x * v2.x;
-	result.y = v1.y * v2.y;
-	result.z = v1.z * v2.z;
+	result.x = v1.x + v2.x;
+	result.y = v1.y + v2.y;
+	result.z = v1.z + v2.z;
 	return result;
 }
 
@@ -424,13 +435,13 @@ Vector3 ClosePoint(const Vector3& point, const Segment& segment) {
 	// セグメントの長さの二乗
 	float segmentLengthSquared = segmentDirection.x * segmentDirection.x + segmentDirection.y * segmentDirection.y + segmentDirection.z * segmentDirection.z;
 	if (segmentLengthSquared == 0.0f) {
-		return segment.origin; // セグメントが点の場合、始点を返す
+		return segment.origin; 
 	}
 	// セグメントの方向ベクトルを正規化
 	Vector3 normalizedSegmentDirection = { segmentDirection.x / sqrtf(segmentLengthSquared), segmentDirection.y / sqrtf(segmentLengthSquared), segmentDirection.z / sqrtf(segmentLengthSquared) };
 	// 点からセグメントへの投影
 	float projectionLength = (segmentToPoint.x * normalizedSegmentDirection.x + segmentToPoint.y * normalizedSegmentDirection.y + segmentToPoint.z * normalizedSegmentDirection.z);
-	projectionLength = fmaxf(0.0f, fminf(projectionLength, sqrtf(segmentLengthSquared))); // 投影長をセグメントの長さに制限
+	projectionLength = fmaxf(0.0f, fminf(projectionLength, sqrtf(segmentLengthSquared)));
 	return { segment.origin.x + normalizedSegmentDirection.x * projectionLength, segment.origin.y + normalizedSegmentDirection.y * projectionLength, segment.origin.z + normalizedSegmentDirection.z * projectionLength };
 }
 
@@ -447,7 +458,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int kWindowWidth = 1280;
 	int kWindowHeight = 720;
 
-	Vector3 cameraTranslate = { 0.0f, 3.6f, -6.49f };
+	Vector3 cameraTranslate = { 0.0f, 1.6f, -6.49f };
 	Vector3 cameraRotation = { 0.26f, 0.0f, 0.0f };
 
 	// ウィンドウの×ボタンが押されるまでループ
@@ -462,16 +473,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-
-#ifdef _DEBUG
-		ImGui::Begin("Debug Window");
-		ImGui::SetWindowSize(ImVec2(300, 200));
-		ImGui::Text("Camera Control");
-		//カメラの回転、平行移動をスライダーで調整
-		ImGui::SliderFloat3("Camera Rotation", &cameraRotation.x, -1.0f, 1.0f);
-		ImGui::SliderFloat3("Camera Translate", &cameraTranslate.x, -10.0f, 10.0f);
-		ImGui::End();
-#endif // _DEBUG
 		
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f, 1.0f ,1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotation, cameraTranslate);
@@ -488,6 +489,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Sphere pointSphere = { point, 0.01f };
 		Sphere closesSphere = { closePoint, 0.01f };
 
+		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), worldViewProjectionMatrix), viewportMatrix);
+
+
+#ifdef _DEBUG
+		ImGui::Begin("Debug Window");
+		ImGui::SetWindowSize(ImVec2(300, 200));
+		ImGui::Text("Camera Control");
+		//カメラの回転、平行移動をスライダーで調整
+		ImGui::SliderFloat3("Camera Rotation", &cameraRotation.x, -1.0f, 1.0f);
+		ImGui::SliderFloat3("Camera Translate", &cameraTranslate.x, -10.0f, 10.0f);
+		ImGui::InputFloat3("Project", &project.x, "%.3f",ImGuiInputTextFlags_ReadOnly);
+		ImGui::End();
+#endif // _DEBUG
 
 		///
 		/// ↑更新処理ここまで
@@ -500,6 +515,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawSphere(pointSphere, worldViewProjectionMatrix, viewportMatrix, RED);
 		DrawSphere(closesSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
+
+		Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), WHITE);
 
 		///
 		/// ↑描画処理ここまで
