@@ -4,6 +4,7 @@
 #include <cmath>
 #include "Matrix4x4.h"
 #include "imgui.h"
+#include <algorithm>
 
 const char kWindowTitle[] = "GC2B_05_ジョ_シセイ";
 
@@ -400,16 +401,39 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 	}
 }
 
-//正射影ベクトル
-Vector3 Project(const Vector3& a, const Vector3& b) {
-	float bLenSq = b.x * b.x + b.y * b.y + b.z * b.z;
-	if (bLenSq == 0.0f) {
-		return { 0.0f, 0.0f, 0.0f };
+Vector3 Project(const Vector3& v1, const Vector3& v2)
+{
+	// v2の長さ
+	float length = std::sqrt(v2.x * v2.x + v2.y * v2.y + v2.z * v2.z);
+	if (length == 0.0f) {
+		return { 0.0f, 0.0f, 0.0f };  // ゼロベクトルの場合は投影できないのでゼロベクトルを返す
 	}
-	float dot = a.x * b.x + a.y * b.y + a.z * b.z;
-	float scale = dot / bLenSq;
-	return { b.x * scale, b.y * scale, b.z * scale };
+
+	// v2を単位ベクトルにする
+	Vector3 unitV2 = { v2.x / length, v2.y / length, v2.z / length };
+
+	// v1をv2に投影する
+	float dotProduct = v1.x * unitV2.x + v1.y * unitV2.y + v1.z * unitV2.z;
+	return { unitV2.x * dotProduct, unitV2.y * dotProduct, unitV2.z * dotProduct };
 }
+
+Vector3 ClosestPoint(const Vector3& point, const Segment& segment)
+{
+	Vector3 segmentVector = segment.diff - segment.origin;
+	Vector3 pointToOrigin = point - segment.origin;
+
+	float segmentLengthSquared = segmentVector * segmentVector;
+	if (segmentLengthSquared == 0.0f) {
+		return segment.origin;
+	}
+
+	// 投影係数
+	float t = (pointToOrigin * segmentVector) / segmentLengthSquared;
+	t = std::clamp(t, 0.0f, 1.0f);
+
+	return segment.origin + segmentVector * t;
+}
+
 
 Vector3 Add(const Vector3& v1, const Vector3& v2) {
 	Vector3 result;
@@ -424,6 +448,14 @@ Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
 	result.x = v1.x - v2.x;
 	result.y = v1.y - v2.y;
 	result.z = v1.z - v2.z;
+	return result;
+}
+
+Vector3 Multiply(const Vector3& v, float scalar) {
+	Vector3 result;
+	result.x = v.x * scalar;
+	result.y = v.y * scalar;
+	result.z = v.z * scalar;
 	return result;
 }
 
@@ -461,6 +493,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraTranslate = { 0.0f, 1.6f, -6.49f };
 	Vector3 cameraRotation = { 0.26f, 0.0f, 0.0f };
 
+	Segment segment = { { -2.0f, -1.0f, 0.0f }, { 3.0f, 2.0f, 2.0f } };
+	Vector3 point = { -1.5f, 0.6f, 0.6f };
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -473,7 +508,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-		
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f, 1.0f ,1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotation, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -481,8 +516,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
-		Segment segment = { { -2.0f, -1.0f, 0.0f }, { 3.0f, 2.0f, 2.0f } };
-		Vector3 point = { -1.5f, 0.6f, 0.6f };
 		Vector3 project = Project(Subtract(point, segment.origin), segment.diff);
 		Vector3 closePoint = ClosePoint(point, segment);
 
@@ -490,7 +523,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Sphere closesSphere = { closePoint, 0.01f };
 
 		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
-		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), worldViewProjectionMatrix), viewportMatrix);
+		Vector3 end = Transform(Transform(segment.diff, worldViewProjectionMatrix), viewportMatrix);
 
 
 #ifdef _DEBUG
@@ -500,6 +533,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//カメラの回転、平行移動をスライダーで調整
 		ImGui::SliderFloat3("Camera Rotation", &cameraRotation.x, -1.0f, 1.0f);
 		ImGui::SliderFloat3("Camera Translate", &cameraTranslate.x, -10.0f, 10.0f);
+		//pointの座標を調整		
+		ImGui::SliderFloat3("Point", &point.x, -10.0f, 10.0f);
+		// SEGMENTの始点を調整
+		ImGui::SliderFloat3("Segment Origin", &segment.origin.x, -10.0f, 10.0f);
+		// SEGMENTの終点を調整
+		ImGui::SliderFloat3("Segment Diff", &segment.diff.x, -10.0f, 10.0f);
 		ImGui::InputFloat3("Project", &project.x, "%.3f",ImGuiInputTextFlags_ReadOnly);
 		ImGui::End();
 #endif // _DEBUG
