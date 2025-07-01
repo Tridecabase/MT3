@@ -325,41 +325,30 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 	}
 }
 
-void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+void DrawSphere(const Sphere& sphere, const Matrix4x4& vpMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
 	const uint32_t kSubdivision = 12;
-	const float kLonEvery = float(2.0f * M_PI) / float(kSubdivision);
+	const float kLonEvery = 2.0f * float(M_PI) / float(kSubdivision);
 	const float kLatEvery = float(M_PI) / float(kSubdivision);
 
-	float rotationAngle = float(M_PI) / 2.0f;
-	float cosRot = cosf(rotationAngle);
-	float sinRot = sinf(rotationAngle);
+	for (uint32_t lat = 0; lat <= kSubdivision; ++lat) {
+		float phi = -float(M_PI) / 2.0f + kLatEvery * float(lat);
+		for (uint32_t lon = 0; lon < kSubdivision; ++lon) {
+			float thetaA = kLonEvery * float(lon);
+			float thetaB = kLonEvery * float(lon + 1);
 
-	for (uint32_t latIndex = 0; latIndex <= kSubdivision; ++latIndex) {
-		float lat = float(-M_PI) / 2.0f + kLatEvery * latIndex;
-		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
-			float lonA = kLonEvery * lonIndex;
-			float lonB = kLonEvery * (lonIndex + 1);
+			Vector3 a = {
+				sphere.center.x + sphere.radius * cosf(phi) * cosf(thetaA),
+				sphere.center.y + sphere.radius * cosf(phi) * sinf(thetaA),
+				sphere.center.z + sphere.radius * sinf(phi)
+			};
+			Vector3 b = {
+				sphere.center.x + sphere.radius * cosf(phi) * cosf(thetaB),
+				sphere.center.y + sphere.radius * cosf(phi) * sinf(thetaB),
+				sphere.center.z + sphere.radius * sinf(phi)
+			};
 
-			Vector3 a, b;
-			a.x = sphere.center.x + sphere.radius * cosf(lat) * cosf(lonA);
-			a.y = sphere.center.y + sphere.radius * cosf(lat) * sinf(lonA);
-			a.z = sphere.center.z + sphere.radius * sinf(lat);
-
-			b.x = sphere.center.x + sphere.radius * cosf(lat) * cosf(lonB);
-			b.y = sphere.center.y + sphere.radius * cosf(lat) * sinf(lonB);
-			b.z = sphere.center.z + sphere.radius * sinf(lat);
-
-			Vector3 aRot, bRot;
-			aRot.x = a.x;
-			aRot.y = a.y * cosRot - a.z * sinRot;
-			aRot.z = a.y * sinRot + a.z * cosRot;
-
-			bRot.x = b.x;
-			bRot.y = b.y * cosRot - b.z * sinRot;
-			bRot.z = b.y * sinRot + b.z * cosRot;
-
-			Vector3 ndcA = Transform(aRot, viewProjectionMatrix);
-			Vector3 ndcB = Transform(bRot, viewProjectionMatrix);
+			Vector3 ndcA = Transform(a, vpMatrix);
+			Vector3 ndcB = Transform(b, vpMatrix);
 			Vector3 screenA = Transform(ndcA, viewportMatrix);
 			Vector3 screenB = Transform(ndcB, viewportMatrix);
 
@@ -367,32 +356,26 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 		}
 	}
 
-	for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
-		float lon = kLonEvery * lonIndex;
-		for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
-			float latA = float(-M_PI) / 2.0f + kLatEvery * latIndex;
-			float latB = latA + kLatEvery;
+	// 纬线
+	for (uint32_t lon = 0; lon < kSubdivision; ++lon) {
+		float theta = kLonEvery * float(lon);
+		for (uint32_t lat = 0; lat < kSubdivision; ++lat) {
+			float phiA = -float(M_PI) / 2.0f + kLatEvery * float(lat);
+			float phiB = phiA + kLatEvery;
 
-			Vector3 a, b;
-			a.x = sphere.center.x + sphere.radius * cosf(latA) * cosf(lon);
-			a.y = sphere.center.y + sphere.radius * cosf(latA) * sinf(lon);
-			a.z = sphere.center.z + sphere.radius * sinf(latA);
+			Vector3 a = {
+				sphere.center.x + sphere.radius * cosf(phiA) * cosf(theta),
+				sphere.center.y + sphere.radius * cosf(phiA) * sinf(theta),
+				sphere.center.z + sphere.radius * sinf(phiA)
+			};
+			Vector3 b = {
+				sphere.center.x + sphere.radius * cosf(phiB) * cosf(theta),
+				sphere.center.y + sphere.radius * cosf(phiB) * sinf(theta),
+				sphere.center.z + sphere.radius * sinf(phiB)
+			};
 
-			b.x = sphere.center.x + sphere.radius * cosf(latB) * cosf(lon);
-			b.y = sphere.center.y + sphere.radius * cosf(latB) * sinf(lon);
-			b.z = sphere.center.z + sphere.radius * sinf(latB);
-
-			Vector3 aRot, bRot;
-			aRot.x = a.x;
-			aRot.y = a.y * cosRot - a.z * sinRot;
-			aRot.z = a.y * sinRot + a.z * cosRot;
-
-			bRot.x = b.x;
-			bRot.y = b.y * cosRot - b.z * sinRot;
-			bRot.z = b.y * sinRot + b.z * cosRot;
-
-			Vector3 ndcA = Transform(aRot, viewProjectionMatrix);
-			Vector3 ndcB = Transform(bRot, viewProjectionMatrix);
+			Vector3 ndcA = Transform(a, vpMatrix);
+			Vector3 ndcB = Transform(b, vpMatrix);
 			Vector3 screenA = Transform(ndcA, viewportMatrix);
 			Vector3 screenB = Transform(ndcB, viewportMatrix);
 
@@ -401,18 +384,15 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 	}
 }
 
+
+
 Vector3 Project(const Vector3& v1, const Vector3& v2)
 {
-	// v2の長さ
 	float length = std::sqrt(v2.x * v2.x + v2.y * v2.y + v2.z * v2.z);
 	if (length == 0.0f) {
-		return { 0.0f, 0.0f, 0.0f };  // ゼロベクトルの場合は投影できないのでゼロベクトルを返す
+		return { 0.0f, 0.0f, 0.0f }; 
 	}
-
-	// v2を単位ベクトルにする
 	Vector3 unitV2 = { v2.x / length, v2.y / length, v2.z / length };
-
-	// v1をv2に投影する
 	float dotProduct = v1.x * unitV2.x + v1.y * unitV2.y + v1.z * unitV2.z;
 	return { unitV2.x * dotProduct, unitV2.y * dotProduct, unitV2.z * dotProduct };
 }
@@ -459,24 +439,6 @@ Vector3 Multiply(const Vector3& v, float scalar) {
 	return result;
 }
 
-Vector3 ClosePoint(const Vector3& point, const Segment& segment) {
-	// セグメントの始点からのベクトル
-	Vector3 segmentToPoint = { point.x - segment.origin.x, point.y - segment.origin.y, point.z - segment.origin.z };
-	// セグメントの方向ベクトル
-	Vector3 segmentDirection = { segment.diff.x, segment.diff.y, segment.diff.z };
-	// セグメントの長さの二乗
-	float segmentLengthSquared = segmentDirection.x * segmentDirection.x + segmentDirection.y * segmentDirection.y + segmentDirection.z * segmentDirection.z;
-	if (segmentLengthSquared == 0.0f) {
-		return segment.origin; 
-	}
-	// セグメントの方向ベクトルを正規化
-	Vector3 normalizedSegmentDirection = { segmentDirection.x / sqrtf(segmentLengthSquared), segmentDirection.y / sqrtf(segmentLengthSquared), segmentDirection.z / sqrtf(segmentLengthSquared) };
-	// 点からセグメントへの投影
-	float projectionLength = (segmentToPoint.x * normalizedSegmentDirection.x + segmentToPoint.y * normalizedSegmentDirection.y + segmentToPoint.z * normalizedSegmentDirection.z);
-	projectionLength = fmaxf(0.0f, fminf(projectionLength, sqrtf(segmentLengthSquared)));
-	return { segment.origin.x + normalizedSegmentDirection.x * projectionLength, segment.origin.y + normalizedSegmentDirection.y * projectionLength, segment.origin.z + normalizedSegmentDirection.z * projectionLength };
-}
-
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -490,11 +452,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int kWindowWidth = 1280;
 	int kWindowHeight = 720;
 
-	Vector3 cameraTranslate = { 0.0f, 1.6f, -6.49f };
-	Vector3 cameraRotation = { 0.26f, 0.0f, 0.0f };
+	Vector3 rotate = { 0.0f,0.0f,0.0f };
+	Vector3 scale = { 1.0f,1.0f,1.0f };
+	Vector3 translate = { 0.0f,0.0f,0.0f };
 
-	Segment segment = { { -2.0f, -1.0f, 0.0f }, { 3.0f, 2.0f, 2.0f } };
-	Vector3 point = { -1.5f, 0.6f, 0.6f };
+	Vector3 cameraPostion{ 0.0f,4.0f,-10.0f };
+	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
+
+
+	Segment segment{ {-2.0f,-1.0f,0.0f},{3.0f,2.0f,2.0f} };
+	Vector3 point{ -1.5f,0.6f,0.6f };
+
+	Vector3 project = Project((point - segment.origin), segment.diff);
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -509,30 +478,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f, 1.0f ,1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f });
-		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotation, cameraTranslate);
+		Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
+		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f,1.0f,1.0f }, cameraRotate, cameraPostion);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kWindowWidth) / float(kWindowHeight), 0.1f, 100.0f);
 		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
-		Vector3 project = Project(Subtract(point, segment.origin), segment.diff);
-		Vector3 closePoint = ClosePoint(point, segment);
-
-		Sphere pointSphere = { point, 0.01f };
-		Sphere closesSphere = { closePoint, 0.01f };
-
 		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
 		Vector3 end = Transform(Transform(segment.diff, worldViewProjectionMatrix), viewportMatrix);
 
+		Vector3 closestPoint = ClosestPoint(point, segment);
+		Sphere pointSphere{ point, 0.01f };
+		Sphere closestPointSphere{ closestPoint,0.01f };
 
 #ifdef _DEBUG
 		ImGui::Begin("Debug Window");
 		ImGui::SetWindowSize(ImVec2(300, 200));
 		ImGui::Text("Camera Control");
-		//カメラの回転、平行移動をスライダーで調整
-		ImGui::SliderFloat3("Camera Rotation", &cameraRotation.x, -1.0f, 1.0f);
-		ImGui::SliderFloat3("Camera Translate", &cameraTranslate.x, -10.0f, 10.0f);
 		//pointの座標を調整		
 		ImGui::SliderFloat3("Point", &point.x, -10.0f, 10.0f);
 		// SEGMENTの始点を調整
@@ -553,7 +516,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawSphere(pointSphere, worldViewProjectionMatrix, viewportMatrix, RED);
-		DrawSphere(closesSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
+		DrawSphere(closestPointSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
 
 		Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), WHITE);
 
