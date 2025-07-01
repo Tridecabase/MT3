@@ -28,8 +28,6 @@ struct Sphere {
 	float radius;
 };
 
-
-
 /// <summary>
 /// 透視投影行列を作成
 /// </summary>
@@ -330,6 +328,36 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& vpMatrix, const Matrix4x4
 	const float kLonEvery = 2.0f * float(M_PI) / float(kSubdivision);
 	const float kLatEvery = float(M_PI) / float(kSubdivision);
 
+	for (uint32_t lon = 0; lon < kSubdivision; ++lon) {
+		float theta = kLonEvery * float(lon);
+		for (uint32_t lat = 0; lat <= kSubdivision; ++lat) {
+			float phiA = -float(M_PI) / 2.0f + kLatEvery * float(lat);
+			float phiB = phiA + kLatEvery;
+
+			Vector3 a = {
+				sphere.center.x + sphere.radius * cosf(phiA) * cosf(theta),
+				sphere.center.y + sphere.radius * sinf(phiA), 
+				sphere.center.z + sphere.radius * cosf(phiA) * sinf(theta)
+			};
+			Vector3 b = {
+				sphere.center.x + sphere.radius * cosf(phiB) * cosf(theta),
+				sphere.center.y + sphere.radius * sinf(phiB),
+				sphere.center.z + sphere.radius * cosf(phiB) * sinf(theta)
+			};
+
+			Vector3 ndcA = Transform(a, vpMatrix);
+			Vector3 ndcB = Transform(b, vpMatrix);
+			Vector3 screenA = Transform(ndcA, viewportMatrix);
+			Vector3 screenB = Transform(ndcB, viewportMatrix);
+
+			Novice::DrawLine(
+				int(screenA.x), int(screenA.y),
+				int(screenB.x), int(screenB.y),
+				color
+			);
+		}
+	}
+
 	for (uint32_t lat = 0; lat <= kSubdivision; ++lat) {
 		float phi = -float(M_PI) / 2.0f + kLatEvery * float(lat);
 		for (uint32_t lon = 0; lon < kSubdivision; ++lon) {
@@ -338,13 +366,13 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& vpMatrix, const Matrix4x4
 
 			Vector3 a = {
 				sphere.center.x + sphere.radius * cosf(phi) * cosf(thetaA),
-				sphere.center.y + sphere.radius * cosf(phi) * sinf(thetaA),
-				sphere.center.z + sphere.radius * sinf(phi)
+				sphere.center.y + sphere.radius * sinf(phi),
+				sphere.center.z + sphere.radius * cosf(phi) * sinf(thetaA)
 			};
 			Vector3 b = {
 				sphere.center.x + sphere.radius * cosf(phi) * cosf(thetaB),
-				sphere.center.y + sphere.radius * cosf(phi) * sinf(thetaB),
-				sphere.center.z + sphere.radius * sinf(phi)
+				sphere.center.y + sphere.radius * sinf(phi),
+				sphere.center.z + sphere.radius * cosf(phi) * sinf(thetaB)
 			};
 
 			Vector3 ndcA = Transform(a, vpMatrix);
@@ -352,37 +380,15 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& vpMatrix, const Matrix4x4
 			Vector3 screenA = Transform(ndcA, viewportMatrix);
 			Vector3 screenB = Transform(ndcB, viewportMatrix);
 
-			Novice::DrawLine(int(screenA.x), int(screenA.y), int(screenB.x), int(screenB.y), color);
-		}
-	}
-
-	// 纬线
-	for (uint32_t lon = 0; lon < kSubdivision; ++lon) {
-		float theta = kLonEvery * float(lon);
-		for (uint32_t lat = 0; lat < kSubdivision; ++lat) {
-			float phiA = -float(M_PI) / 2.0f + kLatEvery * float(lat);
-			float phiB = phiA + kLatEvery;
-
-			Vector3 a = {
-				sphere.center.x + sphere.radius * cosf(phiA) * cosf(theta),
-				sphere.center.y + sphere.radius * cosf(phiA) * sinf(theta),
-				sphere.center.z + sphere.radius * sinf(phiA)
-			};
-			Vector3 b = {
-				sphere.center.x + sphere.radius * cosf(phiB) * cosf(theta),
-				sphere.center.y + sphere.radius * cosf(phiB) * sinf(theta),
-				sphere.center.z + sphere.radius * sinf(phiB)
-			};
-
-			Vector3 ndcA = Transform(a, vpMatrix);
-			Vector3 ndcB = Transform(b, vpMatrix);
-			Vector3 screenA = Transform(ndcA, viewportMatrix);
-			Vector3 screenB = Transform(ndcB, viewportMatrix);
-
-			Novice::DrawLine(int(screenA.x), int(screenA.y), int(screenB.x), int(screenB.y), color);
+			Novice::DrawLine(
+				int(screenA.x), int(screenA.y),
+				int(screenB.x), int(screenB.y),
+				color
+			);
 		}
 	}
 }
+
 
 
 
@@ -439,6 +445,13 @@ Vector3 Multiply(const Vector3& v, float scalar) {
 	return result;
 }
 
+bool isCollision(const Sphere& sphere1, const Sphere& sphere2) {
+	Vector3 diff = Subtract(sphere1.center, sphere2.center);
+	float distanceSquared = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+	float radiusSum = sphere1.radius + sphere2.radius;
+	return distanceSquared <= (radiusSum * radiusSum);
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -459,11 +472,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraPostion{ 0.0f,4.0f,-10.0f };
 	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
 
-
-	Segment segment{ {-2.0f,-1.0f,0.0f},{3.0f,2.0f,2.0f} };
-	Vector3 point{ -1.5f,0.6f,0.6f };
-
-	Vector3 project = Project((point - segment.origin), segment.diff);
+	Sphere sphere1 = { { 0.0f, 0.0f, 0.0f }, 1.0f };
+	Sphere sphere2 = { { 2.0f, 0.0f, 2.0f }, 1.0f };
+	uint32_t sphere1Color = WHITE;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -485,24 +496,40 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
 
-		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
-		Vector3 end = Transform(Transform(segment.diff, worldViewProjectionMatrix), viewportMatrix);
+		if (isCollision(sphere1, sphere2)) {
+			sphere1Color = RED;
+		}
+		else {
+			sphere1Color = WHITE;
+		}
 
-		Vector3 closestPoint = ClosestPoint(point, segment);
-		Sphere pointSphere{ point, 0.01f };
-		Sphere closestPointSphere{ closestPoint,0.01f };
+		if (keys[DIK_W] != 0) {
+			rotate.x += 0.01f; // X軸回転
+		}
+		if (keys[DIK_S] != 0) {
+			rotate.x -= 0.01f; // X軸回転
+		}
+		if (keys[DIK_A] != 0) {
+			rotate.y += 0.01f; // Y軸回転
+		}
+		if (keys[DIK_D] != 0) {
+			rotate.y -= 0.01f; // Y軸回転
+		}
+		if (keys[DIK_Q] != 0) {
+			rotate.z += 0.01f; // Z軸回転
+		}
+		if (keys[DIK_E] != 0) {
+			rotate.z -= 0.01f; // Z軸回転
+		}
+
 
 #ifdef _DEBUG
 		ImGui::Begin("Debug Window");
 		ImGui::SetWindowSize(ImVec2(300, 200));
-		ImGui::Text("Camera Control");
-		//pointの座標を調整		
-		ImGui::SliderFloat3("Point", &point.x, -10.0f, 10.0f);
-		// SEGMENTの始点を調整
-		ImGui::SliderFloat3("Segment Origin", &segment.origin.x, -10.0f, 10.0f);
-		// SEGMENTの終点を調整
-		ImGui::SliderFloat3("Segment Diff", &segment.diff.x, -10.0f, 10.0f);
-		ImGui::InputFloat3("Project", &project.x, "%.3f",ImGuiInputTextFlags_ReadOnly);
+		ImGui::SliderFloat3("Sphere1 Position", &sphere1.center.x, -5.0f, 5.0f);
+		ImGui::SliderFloat("Sphere1 Radius", &sphere1.radius, 0.1f, 5.0f);
+		ImGui::SliderFloat3("Sphere2 Position", &sphere2.center.x, -5.0f, 5.0f);
+		ImGui::SliderFloat("Sphere2 Radius", &sphere2.radius, 0.1f, 5.0f);
 		ImGui::End();
 #endif // _DEBUG
 
@@ -515,10 +542,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(pointSphere, worldViewProjectionMatrix, viewportMatrix, RED);
-		DrawSphere(closestPointSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
+		DrawSphere(sphere1, worldViewProjectionMatrix, viewportMatrix, sphere1Color);
+		DrawSphere(sphere2, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
-		Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), WHITE);
 
 		///
 		/// ↑描画処理ここまで
