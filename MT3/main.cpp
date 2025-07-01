@@ -630,6 +630,12 @@ bool isCollision(const Sphere& sphere, const Plane& plane) {
 	float distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
 	return distSq <= sphere.radius * sphere.radius;
 }
+//球和平面的碰撞检测
+void IsCollision(const Sphere& sphere, const Plane& plane) {
+}
+
+// 线和平面的碰撞检测
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
