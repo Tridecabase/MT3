@@ -37,6 +37,12 @@ struct Triangle {
 	Vector3 verticles[3]; //!<三角形の頂点
 };
 
+// Axis-Aligned Bounding Box (AABB)
+struct AABB {
+	Vector3 min; //!<最小点
+	Vector3 max; //!<最大点
+};
+
 /// <summary>
 /// 透視投影行列を作成
 /// </summary>
@@ -615,6 +621,31 @@ void DrawTriangle(const Triangle& triangle, const Matrix4x4& viewProjectionMatri
 	Novice::DrawLine(int(screenPoints[2].x), int(screenPoints[2].y), int(screenPoints[0].x), int(screenPoints[0].y), color);
 }
 
+void DrawAABB(const AABB& aabb, const Matrix4x4& vpMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	// AABBの8つの頂点を計算
+	Vector3 corners[8];
+	corners[0] = { aabb.min.x, aabb.min.y, aabb.min.z };
+	corners[1] = { aabb.max.x, aabb.min.y, aabb.min.z };
+	corners[2] = { aabb.max.x, aabb.max.y, aabb.min.z };
+	corners[3] = { aabb.min.x, aabb.max.y, aabb.min.z };
+	corners[4] = { aabb.min.x, aabb.min.y, aabb.max.z };
+	corners[5] = { aabb.max.x, aabb.min.y, aabb.max.z };
+	corners[6] = { aabb.max.x, aabb.max.y, aabb.max.z };
+	corners[7] = { aabb.min.x, aabb.max.y, aabb.max.z };
+	// 画面座標に変換
+	Vector3 screenCorners[8];
+	for (int i = 0; i < 8; ++i) {
+		screenCorners[i] = Transform(corners[i], vpMatrix);
+		screenCorners[i] = Transform(screenCorners[i], viewportMatrix);
+	}
+	// エッジを描画
+	for (int i = 0; i < 4; ++i) {
+		Novice::DrawLine(int(screenCorners[i].x), int(screenCorners[i].y), int(screenCorners[(i + 1) % 4].x), int(screenCorners[(i + 1) % 4].y), color);
+		Novice::DrawLine(int(screenCorners[i + 4].x), int(screenCorners[i + 4].y), int(screenCorners[((i + 1) % 4) + 4].x), int(screenCorners[((i + 1) % 4) + 4].y), color);
+		Novice::DrawLine(int(screenCorners[i].x), int(screenCorners[i].y), int(screenCorners[i + 4].x), int(screenCorners[i + 4].y), color);
+	}
+}
+
 /// <summary>
 /// 球と球の衝突判定
 /// </summary>
@@ -773,11 +804,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraPostion{ 0.0f,4.0f,-10.0f };
 	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
 
-    Triangle triangle = {
-    { { 0.0f, 1.5f, 1.5f }, { -1.5f, 1.5f, -1.5f }, { 1.5f, 1.5f, -1.5f } }
-    };
-	Segment segment = { { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
-	unsigned int SegmentColor = 0xFFFFFFFF;
+	AABB aabb = {
+		{ -1.0f, -1.0f, -1.0f }, // 最小点
+		{ 1.0f, 1.0f, 1.0f }    // 最大点
+	};
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -817,43 +847,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		if (keys[DIK_E] != 0) {
 			rotate.z -= 0.01f; // Z軸回転
 		}
+		if (keys[DIK_R] != 0)
+		{
+			rotate = { 0.0f,0.0f,0.0f };
+		}
 
 
 #ifdef _DEBUG
         ImGui::Begin("Debug Window");
-        ImGui::SetWindowSize(ImVec2(300, 200));
-		ImGui::DragFloat3("Triangle Vertex 0", &triangle.verticles[0].x, 0.01f);
-		ImGui::DragFloat3("Triangle Vertex 1", &triangle.verticles[1].x, 0.01f);
-		ImGui::DragFloat3("Triangle Vertex 2", &triangle.verticles[2].x, 0.01f);
-		static Vector3 TriangleOffset = { 0.0f, 0.0f, 0.0f };
-		if (ImGui::DragFloat3("Triangle Offset", &TriangleOffset.x, 0.01f)) {
-			triangle.verticles[0] = Add(triangle.verticles[0], TriangleOffset);
-			triangle.verticles[1] = Add(triangle.verticles[1], TriangleOffset);
-			triangle.verticles[2] = Add(triangle.verticles[2], TriangleOffset);
-			// オフセットをリセット
-			TriangleOffset = { 0.0f, 0.0f, 0.0f };
-		}
-        ImGui::DragFloat3("Segment Origin", &segment.origin.x, 0.01f);
-        ImGui::DragFloat3("Segment Diff", &segment.diff.x, 0.01f);
-        // セグメント全体の移動用
-        static Vector3 segmentOffset = { 0.0f, 0.0f, 0.0f };
-        if (ImGui::DragFloat3("Segment Offset", &segmentOffset.x, 0.01f)) {
-        Vector3 offsetDelta = segmentOffset;
-        segment.origin = Add(segment.origin, offsetDelta);
-        segment.diff = Add(segment.diff, offsetDelta);
-        // オフセットをリセット
-        segmentOffset = { 0.0f, 0.0f, 0.0f };
-        }
+        ImGui::SetWindowSize(ImVec2(400, 400));
         ImGui::End();
 
 #endif // _DEBUG
 
-		if (isCollision(segment, triangle)) {
-			SegmentColor = 0xFF0000FF;
-		}
-		else {
-			SegmentColor = 0xFFFFFFFF;
-		}
 
 		///
 		/// ↑更新処理ここまで
@@ -864,8 +870,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawTriangle(triangle, worldViewProjectionMatrix, viewportMatrix, WHITE);
-		DrawLine(segment, worldViewProjectionMatrix, viewportMatrix, SegmentColor);
+		DrawAABB(aabb, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
 		///
 		/// ↑描画処理ここまで
