@@ -630,8 +630,21 @@ bool isCollision(const Sphere& sphere, const Plane& plane) {
 	float distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
 	return distSq <= sphere.radius * sphere.radius;
 }
-//球和平面的碰撞检测
-void IsCollision(const Sphere& sphere, const Plane& plane) {
+
+/// <summary>
+/// 球と平面の衝突判定
+/// </summary>
+/// <param name="sphere1">球</param>
+/// <param name="plane">平面</param>	
+/// <returns>判定結果</returns>
+bool isCollisionBoundless(const Sphere& sphere1, const Plane&plane) {
+	// 平面の法線ベクトルと球の中心点から平面までの距離を計算
+	float distance = plane.normal.x * sphere1.center.x +
+		plane.normal.y * sphere1.center.y +
+		plane.normal.z * sphere1.center.z -
+		plane.distance;
+	// 球の半径と平面までの距離を比較
+	return fabsf(distance) <= sphere1.radius;
 }
 
 // 线和平面的碰撞检测
