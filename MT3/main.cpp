@@ -423,6 +423,19 @@ void MatrixScreenPrintf(int x, int y, Matrix4x4& m, const char* label) {
 	}
 }
 
+
+void DrawLine(const Segment& segment, const Matrix4x4& vpMatrix, const Matrix4x4& viewportMatrix, uint32_t color){
+	Vector3 ndcStart = Transform(segment.origin, vpMatrix);
+	Vector3 ndcEnd = Transform(segment.diff, vpMatrix);
+	Vector3 screenStart = Transform(ndcStart, viewportMatrix);
+	Vector3 screenEnd = Transform(ndcEnd, viewportMatrix);
+	Novice::DrawLine(
+		int(screenStart.x), int(screenStart.y),
+		int(screenEnd.x), int(screenEnd.y),
+		color
+	);
+}
+
 /// <summary>
 /// グリッドを描画
 /// </summary>
@@ -583,10 +596,10 @@ bool isCollision(const Sphere& sphere1, const Sphere& sphere2) {
 }
 
 /// <summary>
-/// 球と平面の衝突判定
+/// 球と四角形の衝突判定
 /// </summary>
 /// <param name="sphere1">球</param>
-/// <param name="sphere2">平面</param>
+/// <param name="sphere2">四角形</param>
 /// <returns>判定結果</returns>
 bool isCollision(const Sphere& sphere, const Plane& plane) {
 	// 平面中心点
@@ -647,7 +660,21 @@ bool isCollisionBoundless(const Sphere& sphere1, const Plane&plane) {
 	return fabsf(distance) <= sphere1.radius;
 }
 
-// 线和平面的碰撞检测
+/// <summary>
+/// 線と平面の衝突判定
+/// </summary>
+/// <param name="segment">線分</param>
+/// <param name="plane">平面</param>
+/// <returns>>判定結果</returns>
+bool isCollisionLine2Plane(const Segment& segment, const Plane& plane) {
+	// 線分の始点と終点を平面に投影
+	Vector3 startToPlane = Subtract(segment.origin, Multiply(plane.normal, plane.distance));
+	Vector3 endToPlane = Subtract(segment.diff, Multiply(plane.normal, plane.distance));
+	// 線分の始点と終点が平面の同じ側にあるかどうかを判定
+	return (plane.normal.x * startToPlane.x + plane.normal.y * startToPlane.y + plane.normal.z * startToPlane.z) *
+		(plane.normal.x * endToPlane.x + plane.normal.y * endToPlane.y + plane.normal.z * endToPlane.z) < 0.0f;
+}
+
 
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -671,6 +698,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
 
 	Plane plane = { { 0.0f, 1.0f, 0.0f }, 1.0f };
+	Segment segment = { { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+	unsigned int SegmentColor = 0xFFFFFFFF;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -713,15 +742,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 #ifdef _DEBUG
-		ImGui::Begin("Debug Window");
-		ImGui::SetWindowSize(ImVec2(300, 200));
-		ImGui::DragFloat3("Plane Normal", &plane.normal.x, 0.01f);
-		ImGui::DragFloat("Plane Distance", &plane.distance, 0.01f);
-		ImGui::End();
-
-		plane.normal = Normalize(plane.normal);
+        ImGui::Begin("Debug Window");
+        ImGui::SetWindowSize(ImVec2(300, 200));
+        ImGui::DragFloat3("Plane Normal", &plane.normal.x, 0.01f);
+        ImGui::DragFloat("Plane Distance", &plane.distance, 0.01f);
+        ImGui::DragFloat3("Segment Origin", &segment.origin.x, 0.01f);
+        ImGui::DragFloat3("Segment Diff", &segment.diff.x, 0.01f);
+        // セグメント全体の移動用
+        static Vector3 segmentOffset = { 0.0f, 0.0f, 0.0f };
+        if (ImGui::DragFloat3("Segment Offset", &segmentOffset.x, 0.01f)) {
+        Vector3 offsetDelta = segmentOffset;
+        segment.origin = Add(segment.origin, offsetDelta);
+        segment.diff = Add(segment.diff, offsetDelta);
+        // オフセットをリセット
+        segmentOffset = { 0.0f, 0.0f, 0.0f };
+        }
+        ImGui::End();
 
 #endif // _DEBUG
+
+		// 平面の法線を正規化
+		plane.normal = Normalize(plane.normal);
+
+		if (isCollisionLine2Plane(segment, plane)) {
+			SegmentColor = 0xFF0000FF;
+		}
+		else {
+			SegmentColor = 0xFFFFFFFF;
+		}
 
 		///
 		/// ↑更新処理ここまで
@@ -733,6 +781,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawLine(segment, worldViewProjectionMatrix, viewportMatrix, SegmentColor);
 
 		///
 		/// ↑描画処理ここまで
