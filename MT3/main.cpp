@@ -822,6 +822,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #ifdef _DEBUG
         ImGui::Begin("Debug Window");
         ImGui::SetWindowSize(ImVec2(300, 200));
+		ImGui::DragFloat3("Triangle Vertex 0", &triangle.verticles[0].x, 0.01f);
+		ImGui::DragFloat3("Triangle Vertex 1", &triangle.verticles[1].x, 0.01f);
+		ImGui::DragFloat3("Triangle Vertex 2", &triangle.verticles[2].x, 0.01f);
+		static Vector3 TriangleOffset = { 0.0f, 0.0f, 0.0f };
+		if (ImGui::DragFloat3("Triangle Offset", &TriangleOffset.x, 0.01f)) {
+			triangle.verticles[0] = Add(triangle.verticles[0], TriangleOffset);
+			triangle.verticles[1] = Add(triangle.verticles[1], TriangleOffset);
+			triangle.verticles[2] = Add(triangle.verticles[2], TriangleOffset);
+			// オフセットをリセット
+			TriangleOffset = { 0.0f, 0.0f, 0.0f };
+		}
         ImGui::DragFloat3("Segment Origin", &segment.origin.x, 0.01f);
         ImGui::DragFloat3("Segment Diff", &segment.diff.x, 0.01f);
         // セグメント全体の移動用
