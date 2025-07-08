@@ -33,6 +33,10 @@ struct Plane {
 	float distance; //!<平面の方程式 Ax + By + Cz + D = 0 の D
 };
 
+struct Triangle {
+	Vector3 verticles[3]; //!<三角形の頂点
+};
+
 /// <summary>
 /// 透視投影行列を作成
 /// </summary>
@@ -406,6 +410,16 @@ Vector3 ClosestPoint(const Vector3& point, const Segment& segment)
 	return segment.origin + segmentVector * t;
 }
 
+/// <summary>
+///
+/// </summary>
+/// <param name="cross">外積の結果</param>
+/// <param name="noraml">法線ベクトル</param>
+/// <returns>外積と法線ベクトルの内積</returns>
+float Dot(const Vector3& cross, const Vector3& normal) {
+	return cross.x * normal.x + cross.y * normal.y + cross.z * normal.z;
+}
+
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
 /// <summary>
@@ -581,6 +595,27 @@ void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix, const 
 }
 
 /// <summary>
+/// 三角形の描画
+/// </summary>
+/// /// <param name="triangle">三角形の情報</param>
+/// /// <param name="viewProjectionMatrix">ビュープロジェクション行列</param>
+/// <param name="viewportMatrix">ビューポート変換行列</param>
+/// <param name="color">描画色</param>
+void DrawTriangle(const Triangle& triangle, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	Vector3 points[3];
+	points[0] = Transform(triangle.verticles[0], viewProjectionMatrix);
+	points[1] = Transform(triangle.verticles[1], viewProjectionMatrix);
+	points[2] = Transform(triangle.verticles[2], viewProjectionMatrix);
+	Vector3 screenPoints[3];
+	for (uint32_t i = 0; i < 3; ++i) {
+		screenPoints[i] = Transform(points[i], viewportMatrix);
+	}
+	Novice::DrawLine(int(screenPoints[0].x), int(screenPoints[0].y), int(screenPoints[1].x), int(screenPoints[1].y), color);
+	Novice::DrawLine(int(screenPoints[1].x), int(screenPoints[1].y), int(screenPoints[2].x), int(screenPoints[2].y), color);
+	Novice::DrawLine(int(screenPoints[2].x), int(screenPoints[2].y), int(screenPoints[0].x), int(screenPoints[0].y), color);
+}
+
+/// <summary>
 /// 球と球の衝突判定
 /// </summary>
 /// <param name="sphere1">球1</param>
@@ -666,7 +701,7 @@ bool isCollisionBoundless(const Sphere& sphere1, const Plane&plane) {
 /// <param name="segment">線分</param>
 /// <param name="plane">平面</param>
 /// <returns>>判定結果</returns>
-bool isCollisionLine2Plane(const Segment& segment, const Plane& plane) {
+bool isCollision(const Segment& segment, const Plane& plane) {
 	// 線分の始点と終点を平面に投影
 	Vector3 startToPlane = Subtract(segment.origin, Multiply(plane.normal, plane.distance));
 	Vector3 endToPlane = Subtract(segment.diff, Multiply(plane.normal, plane.distance));
@@ -675,6 +710,47 @@ bool isCollisionLine2Plane(const Segment& segment, const Plane& plane) {
 		(plane.normal.x * endToPlane.x + plane.normal.y * endToPlane.y + plane.normal.z * endToPlane.z) < 0.0f;
 }
 
+bool isCollision(const Segment& segment, const Triangle& triangle) {
+	Vector3 normal = Cross(
+		Subtract(triangle.verticles[1], triangle.verticles[0]),
+		Subtract(triangle.verticles[2], triangle.verticles[0])
+	);
+	normal = Normalize(normal); // 必要なら
+
+    // 衝突点pを求める
+    Vector3 segmentDirection = Subtract(segment.diff, segment.origin);
+    float denominator = Dot(normal, segmentDirection);
+    if (denominator == 0.0f) {
+    return false; // 線分と平面が平行
+    }
+    float t = (Dot(normal, Subtract(triangle.verticles[0], segment.origin))) / denominator;
+    if (t < 0.0f || t > 1.0f) {
+    return false; // 衝突点が線分の範囲外
+    }
+    Vector3 p = Add(segment.origin, Multiply(segmentDirection, t));
+
+	Vector3 v01 = Subtract(triangle.verticles[1], triangle.verticles[0]);
+	Vector3 v12 = Subtract(triangle.verticles[2], triangle.verticles[1]);
+	Vector3 v20 = Subtract(triangle.verticles[0], triangle.verticles[2]);
+
+	Vector3 v0p = Subtract(p, triangle.verticles[0]);
+	Vector3 v1p = Subtract(p, triangle.verticles[1]);
+	Vector3 v2p = Subtract(p, triangle.verticles[2]);
+
+	Vector3 cross01 = Cross(v01, v0p);
+	Vector3 cross12 = Cross(v12, v1p);
+	Vector3 cross20 = Cross(v20, v2p);
+
+	if (Dot(cross01, normal) >= 0.0f &&
+		Dot(cross12, normal) >= 0.0f &&
+		Dot(cross20, normal) >= 0.0f) {
+		return true; // 点pは三角形の内部にある
+	}
+	else
+	{
+		return false; // 点pは三角形の外部にある
+	}
+}
 
 
 // Windowsアプリでのエントリーポイント(main関数)
@@ -697,7 +773,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraPostion{ 0.0f,4.0f,-10.0f };
 	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
 
-	Plane plane = { { 0.0f, 1.0f, 0.0f }, 1.0f };
+    Triangle triangle = {
+    { { 0.0f, 1.5f, 1.5f }, { -1.5f, 1.5f, -1.5f }, { 1.5f, 1.5f, -1.5f } }
+    };
 	Segment segment = { { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
 	unsigned int SegmentColor = 0xFFFFFFFF;
 
@@ -744,8 +822,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #ifdef _DEBUG
         ImGui::Begin("Debug Window");
         ImGui::SetWindowSize(ImVec2(300, 200));
-        ImGui::DragFloat3("Plane Normal", &plane.normal.x, 0.01f);
-        ImGui::DragFloat("Plane Distance", &plane.distance, 0.01f);
         ImGui::DragFloat3("Segment Origin", &segment.origin.x, 0.01f);
         ImGui::DragFloat3("Segment Diff", &segment.diff.x, 0.01f);
         // セグメント全体の移動用
@@ -761,10 +837,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #endif // _DEBUG
 
-		// 平面の法線を正規化
-		plane.normal = Normalize(plane.normal);
-
-		if (isCollisionLine2Plane(segment, plane)) {
+		if (isCollision(segment, triangle)) {
 			SegmentColor = 0xFF0000FF;
 		}
 		else {
@@ -780,7 +853,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawTriangle(triangle, worldViewProjectionMatrix, viewportMatrix, WHITE);
 		DrawLine(segment, worldViewProjectionMatrix, viewportMatrix, SegmentColor);
 
 		///
