@@ -854,10 +854,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 #ifdef _DEBUG
-        ImGui::Begin("Debug Window");
-        ImGui::SetWindowSize(ImVec2(400, 400));
-        ImGui::End();
+		ImGui::Begin("Debug Window");
+		ImGui::SetWindowSize(ImVec2(400, 400));
+		ImGui::SetWindowFontScale(1.5f);
+		ImGui::TextUnformatted("Rotation Controls");
+		ImGui::SetWindowFontScale(1.0f);
+		if (ImGui::Button("R - Reset Camera", ImVec2(200, 30))) {
+			rotate = { 0.0f,0.0f,0.0f };
+		}
+        ImGui::TextColored(ImVec4(1,1,0,1), "W/S: X Axis   A/D: Y Axis   Q/E: Z Axis");
+		ImGui::SetWindowFontScale(1.5f);
+		ImGui::TextUnformatted("AABB");
+		ImGui::SetWindowFontScale(1.0f);
+		ImGui::DragFloat3("Min", &aabb.min.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("Max", &aabb.max.x, 0.01f, -10.0f, 10.0f);
 
+		ImGui::End();
 #endif // _DEBUG
 
 
