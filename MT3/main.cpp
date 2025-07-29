@@ -741,6 +741,12 @@ bool isCollision(const Segment& segment, const Plane& plane) {
 		(plane.normal.x * endToPlane.x + plane.normal.y * endToPlane.y + plane.normal.z * endToPlane.z) < 0.0f;
 }
 
+/// <summary>
+/// 線と三角形の衝突判定
+/// </summary>
+/// <param name="segment">線分</param>
+/// <param name="triangle">三角形</param>
+/// <returns>>判定結果</returns>
 bool isCollision(const Segment& segment, const Triangle& triangle) {
 	Vector3 normal = Cross(
 		Subtract(triangle.verticles[1], triangle.verticles[0]),
@@ -795,6 +801,12 @@ bool isCollision(const AABB& aabb1, const AABB& aabb2) {
 		   (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z);
 }
 
+/// <summary>
+///	AABBと球の衝突判定
+/// </summary>
+/// <param name="aabb">AABB</param>
+/// <param name="sphere">球</param>
+/// <returns>>判定結果</returns>
 bool isCollision(const AABB& aabb, const Sphere& sphere) {
 	// 各軸ごとに球の中心をAABBの範囲にクランプ
 	float closestX = std::clamp(sphere.center.x, aabb.min.x, aabb.max.x);
@@ -809,6 +821,43 @@ bool isCollision(const AABB& aabb, const Sphere& sphere) {
 
 	// 距離の2乗が半径の2乗以下なら衝突
 	return distanceSq <= sphere.radius * sphere.radius;
+}
+
+/// <summary>
+/// AABBとセグメントの衝突判定
+/// </summary>
+/// <param name="aabb">AABB</param>
+/// <param name="segment">セグメント</param>
+/// <returns>>判定結果</returns>
+// AABBとセグメントの衝突判定（スラブ法）
+bool isCollision(const AABB& aabb, const Segment& segment) {
+	Vector3 dir = { segment.diff.x - segment.origin.x, segment.diff.y - segment.origin.y, segment.diff.z - segment.origin.z };
+	float tmin = 0.0f;
+	float tmax = 1.0f;
+
+	for (int i = 0; i < 3; ++i) {
+		float segOrigin = (&segment.origin.x)[i];
+		float segDir = (&dir.x)[i];
+		float boxMin = (&aabb.min.x)[i];
+		float boxMax = (&aabb.max.x)[i];
+
+		if (fabsf(segDir) < 1e-6f) {
+			// セグメントがこの軸と平行な場合
+			if (segOrigin < boxMin || segOrigin > boxMax) {
+				return false;
+			}
+		}
+		else {
+			float ood = 1.0f / segDir;
+			float t1 = (boxMin - segOrigin) * ood;
+			float t2 = (boxMax - segOrigin) * ood;
+			if (t1 > t2) std::swap(t1, t2);
+			tmin = (std::max)(tmin, t1);
+			tmax = (std::min)(tmax, t2);
+			if (tmin > tmax) return false;
+		}
+	}
+	return true;
 }
 
 
@@ -834,10 +883,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	AABB aabb1 = {
 		{ -0.5f, -0.5f, -0.5f }, // 最小点
-		{ 0.0f, 0.0f, 0.0f }    // 最大点
+		{ 0.5f, 0.5f, 0.5f }    // 最大点
 	};
 
-	Sphere sphere = { { 1.0f, 1.0f, 1.0f }, 1.0f };
+	Segment segment = {
+		{ -0.7f, 0.3f, 0.0f }, // 始点
+		{ 2.0f, -0.5f, 1.0f }  // 終点
+	};
 
 	uint32_t aabb1color = WHITE;
 
@@ -868,7 +920,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
 		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
 
-		if (isCollision(aabb1, sphere)) {
+		if (isCollision(aabb1, segment)) {
 			aabb1color = RED;
 		}
 		else {
@@ -914,8 +966,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::DragFloat3("AABB1 Min", &aabb1.min.x, 0.01f, -10.0f, 10.0f);
 		ImGui::DragFloat3("AABB1 Max", &aabb1.max.x, 0.01f, -10.0f, 10.0f);
-		ImGui::SliderFloat3("Sphere1 Position", &sphere.center.x, -5.0f, 5.0f);
-		ImGui::SliderFloat("Sphere1 Radius", &sphere.radius, 0.1f, 5.0f);
+		ImGui::TextUnformatted("Segment");
+		ImGui::DragFloat3("Segment Origin", &segment.origin.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("Segment Diff", &segment.diff.x, 0.01f, -10.0f, 10.0f);
 		ImGui::End();
 #endif // _DEBUG
 
@@ -930,7 +983,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, aabb1color);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawLine(segment, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
 		///
 		/// ↑描画処理ここまで
