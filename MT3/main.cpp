@@ -783,6 +783,18 @@ bool isCollision(const Segment& segment, const Triangle& triangle) {
 	}
 }
 
+/// <summary>
+/// aabb同士の衝突判定
+/// </summary>
+/// <param name="aabb1">aabb1</param>
+/// <param name="aabb2">aabb2</param>
+/// <returns>判定結果</returns>
+bool isCollision(const AABB& aabb1, const AABB& aabb2) {
+	return (aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) &&
+		   (aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&
+		   (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z);
+}
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -840,13 +852,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		aabb1.max.x = (std::max)(aabb1.min.x, aabb1.max.x);
 		aabb1.min.y = (std::min)(aabb1.min.y, aabb1.max.y);
 		aabb1.max.y = (std::max)(aabb1.min.y, aabb1.max.y);
+		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
+		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
 
 		aabb2.min.x = (std::min)(aabb2.min.x, aabb2.max.x);
 		aabb2.max.x = (std::max)(aabb2.min.x, aabb2.max.x);
 		aabb2.min.y = (std::min)(aabb2.min.y, aabb2.max.y);
 		aabb2.max.y = (std::max)(aabb2.min.y, aabb2.max.y);
+		aabb2.min.z = (std::min)(aabb2.min.z, aabb2.max.z);
+		aabb2.max.z = (std::max)(aabb2.min.z, aabb2.max.z);
 
 		// aabbの当たり判定
+		if (isCollision(aabb1, aabb2)) {
+			aabb1color = RED;
+		}
+		else {
+			aabb1color = WHITE;
+		}
 
 
 		if (keys[DIK_W] != 0) {
@@ -886,8 +908,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SetWindowFontScale(1.5f);
 		ImGui::TextUnformatted("AABB");
 		ImGui::SetWindowFontScale(1.0f);
-		ImGui::DragFloat3("Min", &aabb1.min.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat3("Max", &aabb1.max.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("AABB1 Min", &aabb1.min.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("AABB1 Max", &aabb1.max.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("AABB2 Min", &aabb2.min.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("AABB2 Max", &aabb2.max.x, 0.01f, -10.0f, 10.0f);
 
 		ImGui::End();
 #endif // _DEBUG
