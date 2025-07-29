@@ -795,6 +795,22 @@ bool isCollision(const AABB& aabb1, const AABB& aabb2) {
 		   (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z);
 }
 
+bool isCollision(const AABB& aabb, const Sphere& sphere) {
+	// 各軸ごとに球の中心をAABBの範囲にクランプ
+	float closestX = std::clamp(sphere.center.x, aabb.min.x, aabb.max.x);
+	float closestY = std::clamp(sphere.center.y, aabb.min.y, aabb.max.y);
+	float closestZ = std::clamp(sphere.center.z, aabb.min.z, aabb.max.z);
+
+	// 最近接点と球の中心の距離の2乗を計算
+	float dx = sphere.center.x - closestX;
+	float dy = sphere.center.y - closestY;
+	float dz = sphere.center.z - closestZ;
+	float distanceSq = dx * dx + dy * dy + dz * dz;
+
+	// 距離の2乗が半径の2乗以下なら衝突
+	return distanceSq <= sphere.radius * sphere.radius;
+}
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -821,10 +837,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		{ 0.0f, 0.0f, 0.0f }    // 最大点
 	};
 
-	AABB aabb2 = {
-		{ 0.2f, 0.2f, 0.2f }, // 最小点
-		{ 1.0f, 1.0f, 1.0f }    // 最大点
-	};
+	Sphere sphere = { { 1.0f, 1.0f, 1.0f }, 1.0f };
 
 	uint32_t aabb1color = WHITE;
 
@@ -855,21 +868,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
 		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
 
-		aabb2.min.x = (std::min)(aabb2.min.x, aabb2.max.x);
-		aabb2.max.x = (std::max)(aabb2.min.x, aabb2.max.x);
-		aabb2.min.y = (std::min)(aabb2.min.y, aabb2.max.y);
-		aabb2.max.y = (std::max)(aabb2.min.y, aabb2.max.y);
-		aabb2.min.z = (std::min)(aabb2.min.z, aabb2.max.z);
-		aabb2.max.z = (std::max)(aabb2.min.z, aabb2.max.z);
-
-		// aabbの当たり判定
-		if (isCollision(aabb1, aabb2)) {
+		if (isCollision(aabb1, sphere)) {
 			aabb1color = RED;
 		}
 		else {
 			aabb1color = WHITE;
 		}
-
 
 		if (keys[DIK_W] != 0) {
 			rotate.x += 0.01f; // X軸回転
@@ -910,9 +914,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::DragFloat3("AABB1 Min", &aabb1.min.x, 0.01f, -10.0f, 10.0f);
 		ImGui::DragFloat3("AABB1 Max", &aabb1.max.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat3("AABB2 Min", &aabb2.min.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat3("AABB2 Max", &aabb2.max.x, 0.01f, -10.0f, 10.0f);
-
+		ImGui::SliderFloat3("Sphere1 Position", &sphere.center.x, -5.0f, 5.0f);
+		ImGui::SliderFloat("Sphere1 Radius", &sphere.radius, 0.1f, 5.0f);
 		ImGui::End();
 #endif // _DEBUG
 
@@ -927,7 +930,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, aabb1color);
-		DrawAABB(aabb2, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
 		///
 		/// ↑描画処理ここまで
