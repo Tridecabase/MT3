@@ -804,10 +804,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraPostion{ 0.0f,4.0f,-10.0f };
 	Vector3 cameraRotate{ 0.3f,0.0f,0.0f };
 
-	AABB aabb = {
-		{ -1.0f, -1.0f, -1.0f }, // 最小点
+	AABB aabb1 = {
+		{ -0.5f, -0.5f, -0.5f }, // 最小点
+		{ 0.0f, 0.0f, 0.0f }    // 最大点
+	};
+
+	AABB aabb2 = {
+		{ 0.2f, 0.2f, 0.2f }, // 最小点
 		{ 1.0f, 1.0f, 1.0f }    // 最大点
 	};
+
+	uint32_t aabb1color = WHITE;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -828,6 +835,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kWindowWidth) / float(kWindowHeight), 0.1f, 100.0f);
 		Matrix4x4 worldViewProjectionMatrix = Muiltiply(worldMatrix, Muiltiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f, 0.0f, float(kWindowWidth), float(kWindowHeight), 0.0f, 1.0f);
+
+		aabb1.min.x = (std::min)(aabb1.min.x, aabb1.max.x);
+		aabb1.max.x = (std::max)(aabb1.min.x, aabb1.max.x);
+		aabb1.min.y = (std::min)(aabb1.min.y, aabb1.max.y);
+		aabb1.max.y = (std::max)(aabb1.min.y, aabb1.max.y);
+
+		aabb2.min.x = (std::min)(aabb2.min.x, aabb2.max.x);
+		aabb2.max.x = (std::max)(aabb2.min.x, aabb2.max.x);
+		aabb2.min.y = (std::min)(aabb2.min.y, aabb2.max.y);
+		aabb2.max.y = (std::max)(aabb2.min.y, aabb2.max.y);
+
+		// aabbの当たり判定
+
 
 		if (keys[DIK_W] != 0) {
 			rotate.x += 0.01f; // X軸回転
@@ -866,8 +886,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SetWindowFontScale(1.5f);
 		ImGui::TextUnformatted("AABB");
 		ImGui::SetWindowFontScale(1.0f);
-		ImGui::DragFloat3("Min", &aabb.min.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat3("Max", &aabb.max.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("Min", &aabb1.min.x, 0.01f, -10.0f, 10.0f);
+		ImGui::DragFloat3("Max", &aabb1.max.x, 0.01f, -10.0f, 10.0f);
 
 		ImGui::End();
 #endif // _DEBUG
@@ -882,7 +902,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawAABB(aabb, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, aabb1color);
+		DrawAABB(aabb2, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
 		///
 		/// ↑描画処理ここまで
