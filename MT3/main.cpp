@@ -854,7 +854,9 @@ bool isCollision(const AABB& aabb, const Segment& segment) {
 			if (t1 > t2) std::swap(t1, t2);
 			tmin = (std::max)(tmin, t1);
 			tmax = (std::min)(tmax, t2);
-			if (tmin > tmax) return false;
+			if (tmin > tmax) {
+				return false;
+			}
 		}
 	}
 	return true;
