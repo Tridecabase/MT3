@@ -829,7 +829,6 @@ bool isCollision(const AABB& aabb, const Sphere& sphere) {
 /// <param name="aabb">AABB</param>
 /// <param name="segment">セグメント</param>
 /// <returns>>判定結果</returns>
-// AABBとセグメントの衝突判定（スラブ法）
 bool isCollision(const AABB& aabb, const Segment& segment) {
 	Vector3 dir = { segment.diff.x - segment.origin.x, segment.diff.y - segment.origin.y, segment.diff.z - segment.origin.z };
 	float tmin = 0.0f;
